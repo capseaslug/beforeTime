@@ -1,7 +1,8 @@
 import sys
 import os
+import github
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton, QTextEdit, QFileDialog, QMessageBox
+from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton, QTextEdit, QFileDialog, QMessageBox, QInputDialog
 
 class ProjectConverterApp(QMainWindow):
     def __init__(self):
@@ -51,12 +52,17 @@ class ProjectConverterApp(QMainWindow):
             if ok and github_repo_name.strip():
                 confirmation_message += f"\nGitHub Repository Name: {github_repo_name}\n"
 
-        confirmation_message += "\nAre you sure you want to proceed?"
+                github_create_repo = QMessageBox.question(self, "GitHub Repository Creation", f"Do you want to create a GitHub repository named '{github_repo_name}'?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
 
-        confirmation = QMessageBox.question(self, "Confirmation", confirmation_message, QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        if confirmation == QMessageBox.StandardButton.Yes:
-            self.create_structure(tree_structures, github_integration == QMessageBox.StandardButton.Yes, github_repo_name)
-        
+                if github_create_repo == QMessageBox.StandardButton.Yes:
+                    self.create_structure(tree_structures, True, github_repo_name)
+                else:
+                    self.create_structure(tree_structures, False, None)
+            else:
+                self.create_structure(tree_structures, False, None)
+        else:
+            self.create_structure(tree_structures, False, None)
+
     def create_structure(self, tree_structures, github_integration, github_repo_name):
         try:
             # Check if a directory is selected
@@ -70,8 +76,9 @@ class ProjectConverterApp(QMainWindow):
                     create_directory_structure(os.path.join(self.selected_directory, dir_name), tree_lines[1:])
                 
                 if github_integration:
-                    # Implement GitHub integration here, using github_repo_name
-                    pass
+                    # GitHub integration logic
+                    github_token = input("Enter your GitHub Personal Access Token: ")
+                    create_github_repository(github_repo_name, github_token)
 
                 QMessageBox.information(self, "Success", "Directory structure(s) created successfully.")
             else:
@@ -79,6 +86,20 @@ class ProjectConverterApp(QMainWindow):
 
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred: {str(e)}")
+
+def create_directory_structure(root_path, tree_lines):
+    for line in tree_lines:
+        parts = line.split('/')
+        current_path = root_path
+        for part in parts:
+            current_path = os.path.join(current_path, part)
+            os.makedirs(current_path, exist_ok=True)
+
+def create_github_repository(repo_name, github_token):
+    g = github.Github(github_token)
+    user = g.get_user()
+    repo = user.create_repo(repo_name)
+    print(f"GitHub repository '{repo_name}' created successfully.")
 
 def main():
     app = QApplication(sys.argv)
